@@ -149,7 +149,7 @@ const handleSend = async () => {
       time: formatTime(),
     })
     result.value = {
-      score: Math.floor(Math.random() * 30) + 60,
+      score: Number((Math.random()*100).toFixed(2)),
       feedback: '你的项目经验描述清晰，对基础技术原理的理解较为扎实。建议在系统设计方面多练习高并发场景的分析思路，同时在表达上可以更结构化（用 STAR 法则：情境→任务→行动→结果）。继续加油！',
     }
     showResult.value = true
