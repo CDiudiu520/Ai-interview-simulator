@@ -74,7 +74,7 @@ const statCards = ref([
 
 const recentInterviews = ref([
   { company: '字节跳动', position: '后端开发实习生', date: '2026-07-12', score: 78 },
-  { company: '阿里巴巴', position: 'Java 开发实习', date: '2026-07-10', score: 65 },
+  { company: '腾讯', position: 'AI应用实习生', date: '2026-07-10', score: 99 },
   { company: '美团', position: 'AI 应用开发', date: '2026-07-08', score: 82 },
 ])
 </script>
