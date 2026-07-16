@@ -26,6 +26,10 @@
           <el-icon><Timer /></el-icon>
           <span>面试记录</span>
         </el-menu-item>
+        <el-menu-item index="/home">
+    <el-icon><DataAnalysis /></el-icon>
+    <span>面试统计</span>
+  </el-menu-item>
       </el-menu>
     </el-aside>
 
