@@ -18,6 +18,9 @@
             show-password @keyup.enter="handleLogin" />
         </el-form-item>
         <el-form-item>
+          <el-checkbox v-model="form.remember">记住密码</el-checkbox>
+        </el-form-item>
+        <el-form-item>
           <el-button type="primary" size="large" style="width: 100%" @click="handleLogin" :loading="loading">
             登 录
           </el-button>

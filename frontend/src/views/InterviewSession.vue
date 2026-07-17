@@ -98,6 +98,9 @@ const questions = ref([
   '请讲讲你对 Java 并发编程的理解？',
   '如果要你设计一个高并发系统，你会从哪些方面考虑？',
   '你对我们公司的业务有什么了解？为什么想加入我们？',
+  '问题一',
+  '问题二',
+  '问题三',
 ])
 
 const currentIndex = ref(0)
@@ -130,7 +133,7 @@ const handleSend = async () => {
 
   // 模拟 AI 思考
   aiThinking.value = true
-  await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000))
+  await new Promise(r => setTimeout(r, 500 + Math.random() * 1000))
   aiThinking.value = false
 
   // 下一题或结束

@@ -69,7 +69,7 @@ const statCards = ref([
   { label: '总面试次数', value: 12, icon: 'ChatLineSquare', bg: '#409EFF' },
   { label: '平均得分', value: '72.5', icon: 'TrendCharts', bg: '#67C23A' },
   { label: '今日练习', value: 3, icon: 'Star', bg: '#E6A23C' },
-  { label: '待改进项', value: 5, icon: 'WarningFilled', bg: '#F56C6C' },
+  
 ])
 
 const recentInterviews = ref([
