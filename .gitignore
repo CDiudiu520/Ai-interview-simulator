@@ -8,6 +8,9 @@ node_modules/
 # 构建产物
 dist/
 
+# Python 缓存
+__pycache__/
+
 # 环境变量文件（可能有密码）
 .env
 .env.local
