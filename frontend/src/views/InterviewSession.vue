@@ -80,14 +80,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick } from 'vue'
+import { ref, reactive, nextTick, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// ---- 模拟面试数据 ----
+const router = useRouter()
+const route = useRoute()
+
+// 从创建页面传入的参数读取面试信息
 const interview = reactive({
-  company: '字节跳动',
-  position: '后端开发实习生',
-  type: 'tech',
+  company: route.query.company || '未指定公司',
+  position: route.query.position || '未指定岗位',
+  type: route.query.type || 'tech',
+  jd: route.query.jd || '',
+  count: Number(route.query.count) || 5,
 })
 
 const typeMap = { tech: '技术面', hr: 'HR面', mixed: '综合面' }
@@ -113,7 +119,7 @@ const result = ref(null)
 const messages = ref([
   {
     role: 'ai',
-    content: '欢迎参加本次模拟面试！我是你的 AI 面试官。我们先从第一个问题开始：' + questions.value[0],
+    content: 'AI 面试官正在准备面试题，请稍候...',
     time: formatTime(),
   },
 ])
@@ -121,6 +127,30 @@ const messages = ref([
 function formatTime() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
+
+// 页面加载时从后端获取真实面试题
+onMounted(async () => {
+  try {
+    const jd = interview.jd || `${interview.company} ${interview.position}`
+    const res = await fetch('http://127.0.0.1:8000/generate-questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jd_text: jd })
+    })
+    const data = await res.json()
+    if (data.questions) {
+      // 按"第X题："拆成单道题
+      const parts = data.questions.split(/第\d+题：/).filter(p => p.trim())
+      questions.value = parts.map(p => p.replace(/\n/g, ' ').trim()).filter(p => p.length > 5)
+      // 更新初始消息为第一道真题
+      if (questions.value.length > 0) {
+        messages.value[0].content = '欢迎参加本次模拟面试！我是你的 AI 面试官。我们先从第一个问题开始：' + questions.value[0]
+      }
+    }
+  } catch (e) {
+    console.error('获取面试题失败，使用默认题:', e)
+  }
+})
 
 const handleSend = async () => {
   const text = userInput.value.trim()

@@ -98,7 +98,16 @@ const handleStart = () => {
   setTimeout(() => {
     starting.value = false
     ElMessage.success('面试已创建，AI 正在生成题目...')
-    router.push('/interview/1')
+    router.push({
+      path: '/interview/1',
+      query: {
+        company: form.company,
+        position: form.position,
+        jd: form.jd,
+        type: form.type,
+        count: form.questionCount,
+      }
+    })
   }, 1000)
 }
 

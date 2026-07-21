@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
 import os
@@ -14,6 +15,14 @@ from db import fetch_all
 
 app = FastAPI()
 
+# 允许前端跨域访问
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # 允许所有来源
+    allow_methods=["*"],      # 允许所有方法
+    allow_headers=["*"],
+)
+
 
 @app.get("/")
 def hello():
@@ -23,6 +32,15 @@ def hello():
 @app.get("/ping")
 def ping():
     return "pong"
+
+
+@app.get("/status")
+def get_status():
+    user_rows = fetch_all("SELECT COUNT(*) AS count FROM users")
+    user_count = user_rows[0]['count']
+    interview_rows = fetch_all("SELECT COUNT(*) AS count FROM interviews")
+    interview_count = interview_rows[0]['count']
+    return {"用户数": user_count, "面试数": interview_count}
 
 
 @app.get("/interviews")
@@ -56,7 +74,7 @@ def generate_questions(req: JDRequest):
             json={
                 "model": "deepseek-chat",
                 "messages": [
-                    {"role": "system", "content": "你是一个专业的面试官。请根据职位描述生成5道面试题，每题标注考察点。"},
+                    {"role": "system", "content": "你是一个专业的面试官。请根据职位描述生成5道面试题，每题标注考察点。不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"},
                     {"role": "user", "content": req.jd_text}
                 ]
             },
