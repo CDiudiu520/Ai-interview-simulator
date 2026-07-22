@@ -161,32 +161,24 @@ const handleSend = async () => {
   userInput.value = ''
   await scrollToBottom()
 
-  // 模拟 AI 思考
+  // 调 AI 进行追问
   aiThinking.value = true
-  await new Promise(r => setTimeout(r, 500 + Math.random() * 1000))
-  aiThinking.value = false
-
-  // 下一题或结束
-  if (currentIndex.value < questions.value.length - 1) {
-    currentIndex.value++
-    messages.value.push({
-      role: 'ai',
-      content: '好的，我们来看下一题：' + questions.value[currentIndex.value],
-      time: formatTime(),
+  try {
+    // 提取 role 和 content 发给后端
+    const history = messages.value.map(m => ({ role: m.role, content: m.content }))
+    const res = await fetch('http://127.0.0.1:8000/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
     })
-  } else {
-    // 面试结束
-    messages.value.push({
-      role: 'ai',
-      content: '面试结束！我已经根据你的表现生成了评估报告，请看右侧弹窗。',
-      time: formatTime(),
-    })
-    result.value = {
-      score: Number((Math.random()*100).toFixed(2)),
-      feedback: '你的项目经验描述清晰，对基础技术原理的理解较为扎实。建议在系统设计方面多练习高并发场景的分析思路，同时在表达上可以更结构化（用 STAR 法则：情境→任务→行动→结果）。继续加油！',
+    const data = await res.json()
+    if (data.reply) {
+      messages.value.push({ role: 'ai', content: data.reply, time: formatTime() })
     }
-    showResult.value = true
+  } catch (e) {
+    console.error('AI 追问失败:', e)
   }
+  aiThinking.value = false
 
   await scrollToBottom()
 }

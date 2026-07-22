@@ -92,3 +92,48 @@ def generate_questions(req: JDRequest):
         return {"error": "请求超时，DeepSeek 没有在 60 秒内响应"}
     except Exception as e:
         return {"error": str(e)}
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict]
+
+
+@app.post("/chat")
+def chat(req: ChatRequest):
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+
+    # 把前端用的 'ai' 转成 DeepSeek 要求的 'assistant'
+    messages = []
+    for m in req.messages:
+        role = m["role"]
+        if role == "ai":
+            role = "assistant"
+        messages.append({"role": role, "content": m["content"]})
+
+    try:
+        response = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "你是一个专业的面试官。请根据候选人的回答进行追问或点评。如果候选人回答得好，深入追问细节；如果回答不好，引导候选人思考。保持对话节奏，不要一次问太多问题。"}
+                ] + messages
+            },
+            timeout=60
+        )
+        data = response.json()
+
+        if "choices" not in data:
+            return {"error": "DeepSeek 返回异常", "detail": data}
+
+        reply = data["choices"][0]["message"]["content"]
+        return {"reply": reply}
+
+    except requests.Timeout:
+        return {"error": "请求超时"}
+    except Exception as e:
+        return {"error": str(e)}
