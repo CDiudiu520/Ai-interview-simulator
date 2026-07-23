@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import requests
 import os
 import sys
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -132,6 +133,51 @@ def chat(req: ChatRequest):
 
         reply = data["choices"][0]["message"]["content"]
         return {"reply": reply}
+
+    except requests.Timeout:
+        return {"error": "请求超时"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/evaluate")
+def evaluate(req: ChatRequest):
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+
+    # 把前端用的 'ai' 转成 DeepSeek 要求的 'assistant'
+    messages = []
+    for m in req.messages:
+        role = m["role"]
+        if role == "ai":
+            role = "assistant"
+        messages.append({"role": role, "content": m["content"]})
+
+    try:
+        response = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "你是一个专业的面试评估官。请根据对话历史对候选人打分（0-100分）并给出评语。只返回JSON格式：{\"score\": 数字, \"feedback\": \"评语\"}，不要返回其他内容。"}
+                ] + messages
+            },
+            timeout=60
+        )
+        data = response.json()
+
+        if "choices" not in data:
+            return {"error": "DeepSeek 返回异常", "detail": data}
+
+        reply = data["choices"][0]["message"]["content"]
+        try:
+            result = json.loads(reply)
+            return {"score": result["score"], "feedback": result["feedback"]}
+        except:
+            return {"score": 0, "feedback": reply}
 
     except requests.Timeout:
         return {"error": "请求超时"}

@@ -188,8 +188,22 @@ const handleEnd = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
-  }).then(() => {
-    ElMessage.info('面试已结束')
+  }).then(async () => {
+    ElMessage.info('正在 AI 评估中...')
+    try {
+      const history = messages.value.map(m => ({ role: m.role, content: m.content }))
+      const res = await fetch('http://127.0.0.1:8000/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      })
+      const data = await res.json()
+      if (data.score !== undefined) {
+        result.value = { score: data.score, feedback: data.feedback }
+      }
+    } catch (e) {
+      console.error('AI 评估失败:', e)
+    }
     showResult.value = true
   }).catch(() => {})
 }
