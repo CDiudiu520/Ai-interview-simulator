@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import requests
 import os
 import sys
 import json
@@ -69,32 +68,26 @@ class JDRequest(BaseModel):
 def generate_questions(req: JDRequest):
     api_key = os.getenv("DEEPSEEK_API_KEY")
 
+    # 1. 创建遥控器
+    llm = ChatOpenAI(
+        base_url="https://api.deepseek.com/v1",
+        api_key=api_key,
+        model="deepseek-chat",
+        temperature=0.7
+    )
+
+    # 2. 拼消息：system + 用户输入的JD
+    messages = [
+        SystemMessage(content="你是一个专业的面试官。请根据职位描述生成5道面试题，每题标注考察点。不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"),
+        HumanMessage(content=req.jd_text)
+    ]
+
     try:
-        response = requests.post(
-            "https://api.deepseek.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "你是一个专业的面试官。请根据职位描述生成5道面试题，每题标注考察点。不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"},
-                    {"role": "user", "content": req.jd_text}
-                ]
-            },
-            timeout=60
-        )
-        data = response.json()
+        # 3. 调 LLM
+        response = llm.invoke(messages)
+        # 4. 返回回复
+        return {"questions": response.content}
 
-        if "choices" not in data:
-            return {"error": "DeepSeek 返回异常", "detail": data}
-
-        questions_text = data["choices"][0]["message"]["content"]
-        return {"questions": questions_text}
-
-    except requests.Timeout:
-        return {"error": "请求超时，DeepSeek 没有在 60 秒内响应"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -149,42 +142,28 @@ class EvalRequest(BaseModel):
 def evaluate(req: EvalRequest):
     api_key = os.getenv("DEEPSEEK_API_KEY")
 
-    # 把前端用的 'ai' 转成 DeepSeek 要求的 'assistant'
-    messages = []
+    # 1. 创建遥控器
+    llm = ChatOpenAI(
+        base_url="https://api.deepseek.com/v1",
+        api_key=api_key,
+        model="deepseek-chat",
+        temperature=0.3      # 打分需要更稳定，temperature 低一点
+    )
+
+    # 2. 拼消息：system + 转换角色
+    messages = [SystemMessage(content="你是一个专业的面试评估官。请根据对话历史对候选人打分（0-100分）并给出评语。只返回JSON格式：{\"score\": 数字, \"feedback\": \"评语\"}，不要返回其他内容。")]
     for m in req.messages:
-        role = m["role"]
-        if role == "ai":
-            role = "assistant"
-        messages.append({"role": role, "content": m["content"]})
+        if m["role"] == "user":
+            messages.append(HumanMessage(content=m["content"]))
+        elif m["role"] == "ai":
+            messages.append(AIMessage(content=m["content"]))
 
+    # 3. 调 LLM
     try:
-        response = requests.post(
-            "https://api.deepseek.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "你是一个专业的面试评估官。请根据对话历史对候选人打分（0-100分）并给出评语。只返回JSON格式：{\"score\": 数字, \"feedback\": \"评语\"}，不要返回其他内容。"}
-                ] + messages
-            },
-            timeout=60
-        )
-        data = response.json()
+        response = llm.invoke(messages)
+        # 4. 解析 JSON 结果
+        result = json.loads(response.content)
+        return {"score": result["score"], "feedback": result["feedback"]}
 
-        if "choices" not in data:
-            return {"error": "DeepSeek 返回异常", "detail": data}
-
-        reply = data["choices"][0]["message"]["content"]
-        try:
-            result = json.loads(reply)
-            return {"score": result["score"], "feedback": result["feedback"]}
-        except:
-            return {"score": 0, "feedback": reply}
-
-    except requests.Timeout:
-        return {"error": "请求超时"}
     except Exception as e:
         return {"error": str(e)}
