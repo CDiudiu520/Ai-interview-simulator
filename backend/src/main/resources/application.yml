@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_interview?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  # 打印SQL到控制台，方便调试
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  # 自动驼峰转下划线：userName -> user_name
+  global-config:
+    db-config:
+      table-prefix: ""
