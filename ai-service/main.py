@@ -72,7 +72,7 @@ def generate_questions(req: JDRequest):
     llm = ChatOpenAI(
         base_url="https://api.deepseek.com/v1",
         api_key=api_key,
-        model="deepseek-chat",
+        model="deepseek-v4-pro",
         temperature=0.7
     )
 
@@ -121,7 +121,7 @@ def chat(req: ChatRequest):
     llm = ChatOpenAI(
         base_url="https://api.deepseek.com/v1",
         api_key=api_key,
-        model="deepseek-chat",
+        model="deepseek-v4-pro",
         temperature=0.7
     )
 
@@ -146,7 +146,7 @@ def evaluate(req: EvalRequest):
     llm = ChatOpenAI(
         base_url="https://api.deepseek.com/v1",
         api_key=api_key,
-        model="deepseek-chat",
+        model="deepseek-v4-pro",
         temperature=0.3      # 打分需要更稳定，temperature 低一点
     )
 

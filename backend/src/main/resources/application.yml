@@ -13,3 +13,6 @@ mybatis-plus:
   global-config:
     db-config:
       table-prefix: ""
+
+ai:
+    service-url: http://localhost:8000
