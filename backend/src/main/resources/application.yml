@@ -16,3 +16,7 @@ mybatis-plus:
 
 ai:
     service-url: http://localhost:8000
+
+jwt:
+  secret: my-secret-key-for-ai-interview-simulator-2025
+  expiration: 1800000  # 30分钟（毫秒）
