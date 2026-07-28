@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:mysql://mysql:3306/ai_interview?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+  data:
+    redis:
+      host: redis
+      port: 6379
+
+ai:
+    service-url: http://ai-service:8000

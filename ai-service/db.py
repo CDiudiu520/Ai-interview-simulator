@@ -1,11 +1,12 @@
+import os
 import pymysql
 
-# 数据库连接信息（本地开发写死没关系，生产环境放 .env）
+# 数据库连接信息（优先用环境变量，没有就用本地 localhost）
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "123456",
-    "database": "ai_interview",
+    "host": os.getenv("DB_HOST", "localhost"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD", "123456"),
+    "database": os.getenv("DB_NAME", "ai_interview"),
     "charset": "utf8mb4",
 }
 

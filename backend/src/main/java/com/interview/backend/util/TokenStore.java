@@ -1,28 +1,32 @@
 package com.interview.backend.util;
 
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class TokenStore {
 
-    // key: 用户名, value: JWT Token
-    // ConcurrentHashMap = 线程安全的 HashMap，Redis 的简化版替身
-    private final ConcurrentHashMap<String, String> store = new ConcurrentHashMap<>();
+    // RedisTemplate = Spring 给的 Redis 遥控器，用法和 HashMap 几乎一样
+    private final RedisTemplate<String, String> redisTemplate;
 
-    // 存 Token
-    public void put(String username, String token) {
-        store.put(username, token);
+    public TokenStore(RedisTemplate<String, String> redisTemplate) {
+        this.redisTemplate = redisTemplate;
     }
 
-    // 查 Token 是否存在且匹配
+    // 存 Token（设过期时间 30 分钟）
+    public void put(String username, String token) {
+        redisTemplate.opsForValue().set(username, token, 30, TimeUnit.MINUTES);
+    }
+
+    // 查 Token 是否存在
     public boolean exists(String username) {
-        return store.containsKey(username);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(username));
     }
 
     // 删除 Token（登出）
     public void remove(String username) {
-        store.remove(username);
+        redisTemplate.delete(username);
     }
 }
