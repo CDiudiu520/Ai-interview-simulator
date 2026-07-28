@@ -7,7 +7,9 @@
           <h3>{{ interview.company }} — {{ interview.position }}</h3>
           <p class="meta">
             <el-tag size="small">{{ typeMap[interview.type] }}</el-tag>
-            <span style="margin-left: 12px;">第 {{ currentIndex + 1 }} / {{ questions.length }} 题</span>
+            <span style="margin-left: 12px;">
+              第 {{ currentIndex + 1 }} / {{ interview.count }} 题
+            </span>
           </p>
         </div>
         <el-button type="danger" plain @click="handleEnd">结束面试</el-button>
@@ -98,16 +100,8 @@ const interview = reactive({
 
 const typeMap = { tech: '技术面', hr: 'HR面', mixed: '综合面' }
 
-const questions = ref([
-  '请介绍一下你简历中提到的最有挑战性的项目？',
-  '在项目中你用了哪些技术栈？为什么选择这些技术？',
-  '请讲讲你对 Java 并发编程的理解？',
-  '如果要你设计一个高并发系统，你会从哪些方面考虑？',
-  '你对我们公司的业务有什么了解？为什么想加入我们？',
-  '问题一',
-  '问题二',
-  '问题三',
-])
+const questions = ref([])  // AI 返回前为空
+const loadingQuestions = ref(true)  // 题目加载中
 
 const currentIndex = ref(0)
 const userInput = ref('')
@@ -132,10 +126,11 @@ function formatTime() {
 onMounted(async () => {
   try {
     const jd = interview.jd || `${interview.company} ${interview.position}`
-    const res = await fetch('http://127.0.0.1:8000/generate-questions', {
+    const questionCount = interview.count || 5
+    const res = await fetch('http://127.0.0.1:8080/ai/generate-questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jd_text: jd })
+      body: JSON.stringify({ jd_text: jd, count: questionCount })
     })
     const data = await res.json()
     if (data.questions) {
@@ -148,9 +143,13 @@ onMounted(async () => {
       }
     }
   } catch (e) {
-    console.error('获取面试题失败，使用默认题:', e)
+    console.error('获取面试题失败:', e)
+    ElMessage.error('题目生成失败，请返回重试')
   }
+  loadingQuestions.value = false
 })
+
+const sessionId = ref(null)  // AI 对话会话ID
 
 const handleSend = async () => {
   const text = userInput.value.trim()
@@ -164,16 +163,18 @@ const handleSend = async () => {
   // 调 AI 进行追问
   aiThinking.value = true
   try {
-    // 提取 role 和 content 发给后端
-    const history = messages.value.map(m => ({ role: m.role, content: m.content }))
-    const res = await fetch('http://127.0.0.1:8000/chat', {
+    const res = await fetch('http://127.0.0.1:8080/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history })
+      body: JSON.stringify({
+        session_id: sessionId.value,
+        message: text
+      })
     })
     const data = await res.json()
     if (data.reply) {
       messages.value.push({ role: 'ai', content: data.reply, time: formatTime() })
+      sessionId.value = data.session_id  // 保存会话ID，下次追问用
     }
   } catch (e) {
     console.error('AI 追问失败:', e)
@@ -192,7 +193,7 @@ const handleEnd = () => {
     ElMessage.info('正在 AI 评估中...')
     try {
       const history = messages.value.map(m => ({ role: m.role, content: m.content }))
-      const res = await fetch('http://127.0.0.1:8000/evaluate', {
+      const res = await fetch('http://127.0.0.1:8080/ai/evaluate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: history })

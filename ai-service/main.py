@@ -62,6 +62,7 @@ def get_interviews():
 
 class JDRequest(BaseModel):
     jd_text: str
+    count: int = 5
 
 
 @app.post("/generate-questions")
@@ -78,7 +79,7 @@ def generate_questions(req: JDRequest):
 
     # 2. 拼消息：system + 用户输入的JD
     messages = [
-        SystemMessage(content="你是一个专业的面试官。请根据职位描述生成5道面试题，每题标注考察点。不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"),
+        SystemMessage(content=f"你是一个专业的面试官。请根据职位描述生成{req.count}道面试题，每题标注考察点。不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"),
         HumanMessage(content=req.jd_text)
     ]
 
