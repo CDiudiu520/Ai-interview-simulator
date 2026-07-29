@@ -10,9 +10,7 @@
 
 ## 为什么做这个项目
 
-我在准备春招实习。每次海投完，最大的恐惧不是写简历，而是——面试官会问什么？我该怎么答？
-
-市面上没有好用的 AI 面试工具。既然我自己就是最痛苦的目标用户，不如自己做一个。现在每次面试前都用它模拟。
+一个展示全栈 + AI 工程能力的综合项目：前端 Vue3 + 后端 Java Spring Boot 微服务 + Python LangChain AI 服务，Docker Compose 五服务编排，一键本地启动。覆盖认证授权、RAG 知识库、多轮对话 Agent、结构化评分等 AI 应用开发核心场景。
 
 ## 功能
 
@@ -83,7 +81,7 @@ npm install && npm run dev
 
 ## 演示
 
-> 📹 [5分钟演示视频](https://www.bilibili.com/) （即将上传）
+本地一键启动：`docker compose up`，浏览器打开 `http://localhost:5173`
 
 ## License
 
