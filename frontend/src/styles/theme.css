@@ -1,0 +1,114 @@
+/* ═══════════════════════════════════════════
+   Light palette — clean, minimal, human
+   ═══════════════════════════════════════════ */
+
+:root {
+  --bg:           #F8F8F6;
+  --surface:      #FFFFFF;
+  --text:         #111111;
+  --text-secondary: #6E6E6E;
+  --text-muted:   #A0A0A0;
+  --border:       #E8E8E4;
+  --border-light: #F0F0EC;
+
+  --primary:       #2E7D4F;
+  --primary-hover: #25613E;
+  --primary-light: rgba(46, 125, 79, 0.08);
+  --primary-ghost: rgba(46, 125, 79, 0.04);
+
+  --success:      #3CC27E;
+  --warning:      #F0B848;
+  --danger:       #E05555;
+
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --radius-lg:    16px;
+
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md:    0 4px 16px rgba(0,0,0,0.06);
+
+  --font-display: 'ZCOOL KuaiLe', 'PingFang SC', sans-serif;
+  --font-body:    'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  --ease-out:     cubic-bezier(0.16, 1, 0.3, 1);
+  --fast:         150ms;
+  --normal:       300ms;
+}
+
+/* ── Element Plus override ── */
+:root {
+  --el-color-primary: var(--primary);
+  --el-color-primary-light-3: #52956F;
+  --el-color-primary-light-5: #7AB590;
+  --el-color-primary-light-7: #A5D0B5;
+  --el-color-primary-light-8: #C8E3D2;
+  --el-color-primary-light-9: #E8F5ED;
+  --el-color-primary-dark-2: #25613E;
+
+  --el-color-success: var(--success);
+  --el-color-warning: var(--warning);
+  --el-color-danger: var(--danger);
+
+  --el-text-color-primary: var(--text);
+  --el-text-color-regular: var(--text-secondary);
+  --el-text-color-secondary: var(--text-muted);
+  --el-bg-color: var(--surface);
+  --el-bg-color-page: var(--bg);
+  --el-border-color: var(--border);
+  --el-border-color-light: var(--border-light);
+
+  --el-border-radius-base: var(--radius-sm);
+  --el-font-family: var(--font-body);
+}
+
+/* ── Global ── */
+html {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+body { background: var(--bg); }
+
+/* ── Buttons ── */
+.el-button--primary {
+  --el-button-bg-color: var(--primary);
+  --el-button-border-color: var(--primary);
+  --el-button-hover-bg-color: var(--primary-hover);
+  --el-button-hover-border-color: var(--primary-hover);
+  letter-spacing: 0.04em;
+}
+.el-button:not(.el-button--primary):not(.el-button--danger):not(.el-button--success):not(.el-button--warning) {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.el-button:not(.el-button--primary):not(.el-button--danger):not(.el-button--success):not(.el-button--warning):hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+  background: rgba(0,0,0,0.02);
+}
+
+/* ── Inputs ── */
+.el-input.is-focus .el-input__wrapper,
+.el-textarea.is-focus .el-textarea__inner {
+  box-shadow: 0 0 0 1px var(--primary) inset !important;
+}
+.el-textarea__inner {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: none;
+  border-radius: 8px;
+}
+.el-textarea__inner:focus {
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+/* ── Misc ── */
+.el-card { border-color: var(--border) !important; box-shadow: var(--shadow-sm) !important; }
+.el-menu { border-right: none !important; }
+.el-slider__bar { background: var(--primary) !important; }
+.el-slider__button { border-color: var(--primary) !important; }
+.el-pagination .el-pager li.is-active { background: var(--primary) !important; }
+.el-progress-bar__outer { background: var(--border-light) !important; }

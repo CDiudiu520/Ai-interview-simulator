@@ -1,135 +1,142 @@
 <template>
-  <div class="dashboard">
-    <!-- 统计卡片 -->
-    <el-row :gutter="20">
-      <el-col :span="6" v-for="card in statCards" :key="card.label">
-        <el-card class="stat-card" shadow="hover">
-          <div class="stat-content">
-            <div class="stat-icon" :style="{ background: card.bg }">
-              <el-icon :size="28" color="#fff"><component :is="card.icon" /></el-icon>
-            </div>
-            <div class="stat-info">
-              <p class="stat-value">{{ card.value }}</p>
-              <p class="stat-label">{{ card.label }}</p>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+  <div class="home">
+    <!-- 问候 -->
+    <div class="greeting">
+      <h2 class="greeting-text">下午好，管理员 <span class="wave">👋</span></h2>
+      <p class="greeting-sub">每一次模拟面试，都是在为真正的机会做准备</p>
+    </div>
 
-    <!-- 快捷操作 -->
-    <el-row :gutter="20" style="margin-top: 24px;">
-      <el-col :span="14">
-        <el-card>
-          <template #header>
-            <span class="card-title">最近面试记录</span>
-          </template>
-          <el-table :data="recentInterviews" style="width: 100%" stripe>
-            <el-table-column prop="company" label="公司" />
-            <el-table-column prop="position" label="岗位" />
-            <el-table-column prop="date" label="日期" width="120" />
-            <el-table-column prop="score" label="得分" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.score >= 70 ? 'success' : row.score >= 50 ? 'warning' : 'danger'">
-                  {{ row.score }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div style="text-align: center; margin-top: 16px;">
-            <el-button type="primary" @click="$router.push('/interview/create')">
-              开始新面试
-            </el-button>
-          </div>
-        </el-card>
-      </el-col>
+    <!-- 模块入口卡片 -->
+    <div class="hub-cards">
+      <router-link to="/interview/create" class="hub-card">
+        <div class="hub-icon-box">
+          <IconAddSignBold class="hub-icon" />
+        </div>
+        <div class="hub-body">
+          <div class="hub-title">开始模拟面试</div>
+          <div class="hub-desc">输入 JD + 简历，AI 自动出题并进行多轮追问</div>
+        </div>
+        <span class="hub-arrow">→</span>
+      </router-link>
 
-      <el-col :span="10">
-        <el-card>
-          <template #header>
-            <span class="card-title">AI 面试技巧</span>
-          </template>
-          <ul class="tips-list">
-            <li>📝 上传完整的 JD，AI 才能生成精准的面试题</li>
-            <li>🎯 面试前先回顾你的简历亮点，AI 会重点考察</li>
-            <li>💡 每次面试后查看 AI 反馈报告，针对性改进</li>
-            <li>📚 上传面经文档到知识库，AI 出题更有针对性</li>
-            <li>🔄 多轮追问功能可以模拟真实面试的压力感</li>
-          </ul>
-        </el-card>
-      </el-col>
-    </el-row>
+      <router-link to="/interview/history" class="hub-card">
+        <div class="hub-icon-box">
+          <IconAlertAlarmClock class="hub-icon" />
+        </div>
+        <div class="hub-body">
+          <div class="hub-title">面试记录</div>
+          <div class="hub-desc">回顾过往面试，查看 AI 评估报告和改进建议</div>
+        </div>
+        <span class="hub-arrow">→</span>
+      </router-link>
+
+      <div class="hub-card locked">
+        <div class="hub-icon-box locked-box">
+          <IconAnalyticsBoardGraphLine class="hub-icon locked-icon" />
+        </div>
+        <div class="hub-body">
+          <div class="hub-title">面试统计</div>
+          <div class="hub-desc">能力雷达图 + 得分趋势 + 弱项分析</div>
+        </div>
+        <span class="hub-lock">🔒</span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
-const statCards = ref([
-  { label: '总面试次数', value: 12, icon: 'ChatLineSquare', bg: '#409EFF' },
-  { label: '平均得分', value: '72.5', icon: 'TrendCharts', bg: '#67C23A' },
-  { label: '今日练习', value: 3, icon: 'Star', bg: '#E6A23C' },
-  
-])
-
-const recentInterviews = ref([
-  { company: '字节跳动', position: '后端开发实习生', date: '2026-07-12', score: 78 },
-  { company: '腾讯', position: 'AI应用实习生', date: '2026-07-10', score: 99 },
-  { company: '美团', position: 'AI 应用开发', date: '2026-07-08', score: 82 },
-])
+import {
+  IconAddSignBold,
+  IconAlertAlarmClock,
+  IconAnalyticsBoardGraphLine,
+} from '@iconify-prerendered/vue-streamline-freehand'
 </script>
 
 <style scoped>
-.stat-card {
-  cursor: pointer;
+.home {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-top: 24px;
 }
 
-.stat-content {
+/* ── 问候 ── */
+.greeting { margin-bottom: 40px; }
+.greeting-text {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.wave { font-size: 22px; }
+.greeting-sub {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ── 模块卡片 ── */
+.hub-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hub-card {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
+  padding: 24px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease-out), border-color var(--fast);
+}
+.hub-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+.hub-card.locked {
+  cursor: default;
+  opacity: 0.55;
+}
+.hub-card.locked:hover {
+  border-color: var(--border);
+  box-shadow: none;
 }
 
-.stat-icon {
-  width: 56px;
-  height: 56px;
+.hub-icon-box {
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
+  background: var(--primary-ghost);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-
-.stat-value {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
+.locked-box { background: var(--border-light); }
+.hub-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--primary);
 }
+.locked-icon { color: var(--text-muted); }
 
-.stat-label {
-  color: #909399;
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-.card-title {
-  font-size: 16px;
+.hub-body { flex: 1; min-width: 0; }
+.hub-title {
+  font-size: 17px;
   font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.hub-card.locked .hub-title { color: var(--text-secondary); }
+.hub-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-.tips-list {
-  list-style: none;
-  padding: 0;
-}
-
-.tips-list li {
-  padding: 10px 0;
-  color: #606266;
-  line-height: 1.6;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.tips-list li:last-child {
-  border-bottom: none;
-}
+.hub-arrow { font-size: 20px; color: var(--text-muted); flex-shrink: 0; }
+.hub-lock { font-size: 16px; flex-shrink: 0; }
 </style>

@@ -13,7 +13,9 @@
 }
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-body);
+  background: var(--paper-bg);
+  color: var(--ink-primary);
 }
 
 #app {
