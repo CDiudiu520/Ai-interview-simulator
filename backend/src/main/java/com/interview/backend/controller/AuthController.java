@@ -4,6 +4,7 @@ import com.interview.backend.entity.User;
 import com.interview.backend.service.UserService;
 import com.interview.backend.util.JwtUtil;
 import com.interview.backend.util.TokenStore;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -15,17 +16,22 @@ public class AuthController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final TokenStore tokenStore;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public AuthController(UserService userService, JwtUtil jwtUtil, TokenStore tokenStore) {
+    public AuthController(UserService userService, JwtUtil jwtUtil, TokenStore tokenStore,
+                          BCryptPasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
         this.tokenStore = tokenStore;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // 注册
     @PostMapping("/register")
     public Map<String, Object> register(@RequestBody User user) {
-        // 1. 存到 MySQL
+        // 1. 密码加密后存到 MySQL
+        String encodedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(encodedPassword);
         userService.create(user);
 
         // 2. 生成 JWT
@@ -43,7 +49,7 @@ public class AuthController {
         // 1. 从 MySQL 查用户
         User user = userService.listAll().stream()
             .filter(u -> u.getUsername().equals(req.getUsername()))
-            .filter(u -> u.getPassword().equals(req.getPassword()))
+            .filter(u -> passwordEncoder.matches(req.getPassword(), u.getPassword()))
             .findFirst()
             .orElse(null);
 

@@ -45,6 +45,11 @@
 			<version>0.12.6</version>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- BCrypt 密码加密 -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
 		<!-- Docker 环境启用 Redis，本地开发注释掉 -->
 		<!--
 		<dependency>
