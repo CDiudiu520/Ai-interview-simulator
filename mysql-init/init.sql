@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS interviews (
     company VARCHAR(100) NOT NULL,
     position VARCHAR(100) NOT NULL,
     score DECIMAL(5,2) DEFAULT NULL,
+    feedback TEXT DEFAULT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY user_id (user_id),
