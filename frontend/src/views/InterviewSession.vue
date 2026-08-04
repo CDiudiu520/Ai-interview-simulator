@@ -52,16 +52,27 @@
     </div>
 
     <!-- 结果弹窗 -->
-    <el-dialog v-model="showResult" title="面试结果" width="480px">
+    <el-dialog v-model="showResult" title="面试结果" width="520px">
       <div class="result-panel" v-if="result">
         <div class="result-score"><span class="score-big">{{ result.score }}</span><span class="score-suffix">分</span></div>
-        <div class="result-dims">
-          <div class="dim-row"><span class="dim-label">逻辑能力</span><span class="dim-stars">⭐⭐⭐⭐</span></div>
-          <div class="dim-row"><span class="dim-label">专业深度</span><span class="dim-stars">⭐⭐⭐</span></div>
-          <div class="dim-row"><span class="dim-label">表达准确度</span><span class="dim-stars">⭐⭐⭐⭐</span></div>
+
+        <div class="result-block" v-if="result.highlights && result.highlights.length">
+          <div class="block-title">✅ 亮点</div>
+          <ul class="block-list"><li v-for="(h, i) in result.highlights" :key="i">{{ h }}</li></ul>
         </div>
-        <div class="result-feedback">
-          <div class="feedback-title">AI 改进建议</div>
+
+        <div class="result-block" v-if="result.weaknesses && result.weaknesses.length">
+          <div class="block-title">⚠️ 短板</div>
+          <ul class="block-list"><li v-for="(w, i) in result.weaknesses" :key="i">{{ w }}</li></ul>
+        </div>
+
+        <div class="result-block" v-if="result.suggestions && result.suggestions.length">
+          <div class="block-title">💡 改进建议</div>
+          <ul class="block-list"><li v-for="(s, i) in result.suggestions" :key="i">{{ s }}</li></ul>
+        </div>
+
+        <div class="result-feedback" v-if="result.feedback">
+          <div class="feedback-title">总评</div>
           <p>{{ result.feedback }}</p>
         </div>
       </div>
@@ -140,7 +151,7 @@ const handleEnd = () => {
         const history = messages.value.map(m => ({ role: m.role, content: m.content }))
         const res = await fetch('http://127.0.0.1:8080/ai/evaluate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history }) })
         const data = await res.json()
-        if (data.score !== undefined) { result.value = { score: data.score, feedback: data.feedback } }
+        if (data.score !== undefined) { result.value = { score: data.score, feedback: data.feedback, highlights: data.highlights || [], weaknesses: data.weaknesses || [], suggestions: data.suggestions || [] } }
       } catch (e) { console.error(e) }
       showResult.value = true
     }).catch(() => {})
@@ -195,6 +206,11 @@ const scrollToBottom = async () => { await nextTick(); const el = messagesRef.va
 .dim-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
 .dim-row:last-child { border-bottom: none; }
 .dim-label { font-size: 14px; color: var(--text); }
+.result-block { text-align: left; margin-bottom: 16px; }
+.block-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.block-list { margin: 0; padding: 0 0 0 16px; }
+.block-list li { font-size: 14px; line-height: 1.8; color: var(--text-secondary); margin-bottom: 4px; }
+
 .result-feedback { text-align: left; margin-top: 16px; padding: 16px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); line-height: 1.8; font-size: 14px; }
 .feedback-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
 </style>

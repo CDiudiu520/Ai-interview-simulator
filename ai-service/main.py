@@ -152,7 +152,7 @@ def evaluate(req: EvalRequest):
     )
 
     # 2. 拼消息：system + 转换角色
-    messages = [SystemMessage(content="你是一个专业的面试评估官。请根据对话历史对候选人打分（0-100分）并给出评语。只返回JSON格式：{\"score\": 数字, \"feedback\": \"评语\"}，不要返回其他内容。")]
+    messages = [SystemMessage(content="你是一个专业的面试评估官。请根据对话历史对候选人打分（0-100分），并给出以下内容：\n- feedback：2-3 句话的总评\n- highlights：1-3 个具体亮点（用数组，每个是一句话）\n- weaknesses：最关键的 1-3 个短板（挑最重要的，不是全部列出来。用数组，每个是一句话，引用对话中的具体例子）\n- suggestions：2-3 条可操作的改进建议（用数组，每个是一句话）\n\n只返回JSON格式，不要返回其他内容：\n{\"score\": 82, \"feedback\": \"总评...\", \"highlights\": [\"亮点1\", \"亮点2\"], \"weaknesses\": [\"短板1\"], \"suggestions\": [\"建议1\", \"建议2\"]}")]
     for m in req.messages:
         if m["role"] == "user":
             messages.append(HumanMessage(content=m["content"]))
@@ -164,7 +164,13 @@ def evaluate(req: EvalRequest):
         response = llm.invoke(messages)
         # 4. 解析 JSON 结果
         result = json.loads(response.content)
-        return {"score": result["score"], "feedback": result["feedback"]}
+        return {
+            "score": result["score"],
+            "feedback": result["feedback"],
+            "highlights": result.get("highlights", []),
+            "weaknesses": result.get("weaknesses", []),
+            "suggestions": result.get("suggestions", [])
+        }
 
     except Exception as e:
         return {"error": str(e)}
