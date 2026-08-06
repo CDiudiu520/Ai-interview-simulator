@@ -49,9 +49,7 @@ public class JwtFilter implements Filter {
         // 提取 Token
         String authHeader = req.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            res.setStatus(401);
-            res.setContentType("application/json;charset=UTF-8");
-            res.getWriter().write("{\"error\":\"未登录，请先登录\"}");
+            writeUnauthorized(res, "未登录，请先登录");
             return;
         }
 
@@ -60,23 +58,27 @@ public class JwtFilter implements Filter {
         // 验三道：签名 → 过期 → TokenStore
         if (!jwtUtil.validateToken(token)) {
             log.warn("Token 验证失败: {}", token.substring(0, Math.min(20, token.length())));
-            res.setStatus(401);
-            res.setContentType("application/json;charset=UTF-8");
-            res.getWriter().write("{\"error\":\"Token 无效或已过期，请重新登录\"}");
+            writeUnauthorized(res, "Token 无效或已过期，请重新登录");
             return;
         }
 
         String username = jwtUtil.getUsernameFromToken(token);
         if (!tokenStore.exists(username)) {
             log.warn("Token 不在 TokenStore 中: {}", username);
-            res.setStatus(401);
-            res.setContentType("application/json;charset=UTF-8");
-            res.getWriter().write("{\"error\":\"Token 已失效，请重新登录\"}");
+            writeUnauthorized(res, "Token 已失效，请重新登录");
             return;
         }
 
         // 验证通过，把用户名放进 request，后续接口可以用
         req.setAttribute("username", username);
         chain.doFilter(request, response);
+    }
+
+    // 统一写 401 响应，必须带上 CORS 头，否则浏览器会把跨域 401 误判成网络错误
+    private void writeUnauthorized(HttpServletResponse res, String message) throws IOException {
+        res.setStatus(401);
+        res.setContentType("application/json;charset=UTF-8");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.getWriter().write("{\"error\":\"" + message + "\"}");
     }
 }
