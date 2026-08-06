@@ -35,7 +35,8 @@ public class JwtFilter implements Filter {
         String path = req.getRequestURI();
 
         // 白名单：不需要 Token 的路径
-        if (path.startsWith("/auth/") || path.equals("/ping")) {
+        if (path.startsWith("/auth/") || path.equals("/ping")
+                || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")) {
             chain.doFilter(request, response);
             return;
         }
