@@ -127,11 +127,9 @@ onMounted(async () => {
 
 const interviewId = route.params.id
 const sessionId = ref(null)
-const exchangeCount = ref(0)
 
 const advanceQuestion = () => {
   currentIndex.value++
-  exchangeCount.value = 0
   if (currentIndex.value < questions.value.length) {
     const prefix = `【第${currentIndex.value + 1}题】`
     messages.value.push({ role: 'ai', content: `${prefix} ${questions.value[currentIndex.value]}`, time: formatTime() })
@@ -148,21 +146,24 @@ const handleSend = async () => {
   aiThinking.value = true
   try {
     const token = localStorage.getItem('token')
-    const questionContext = questions.value.length > 0
-      ? `（当前是第${currentIndex.value + 1}/${questions.value.length}题，追问第${exchangeCount.value + 1}轮，最多追问3轮。如果该换题了，回复中必须包含【下一题】；如果是最后一题且追问够了，回复中必须包含【面试结束】。题目列表：${questions.value.join(' | ')}）`
-      : ''
+    const isFirst = !sessionId.value
     const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/chat`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ session_id: sessionId.value, message: questionContext + text })
+      body: JSON.stringify({
+        session_id: sessionId.value,
+        message: text,
+        questions: isFirst ? questions.value : undefined,  // 首次调用初始化 Agent
+      })
     })
     const data = await res.json()
     if (data.reply) {
-      const reply = data.reply
-      messages.value.push({ role: 'ai', content: reply, time: formatTime() })
+      messages.value.push({ role: 'ai', content: data.reply, time: formatTime() })
       sessionId.value = data.session_id
-      exchangeCount.value++
-      if (reply.includes('【面试结束】')) { setTimeout(() => handleEnd(true), 500) }
-      else if (reply.includes('【下一题】') || exchangeCount.value >= 4) { setTimeout(() => advanceQuestion(), 500) }
+      // 状态判断交给后端 Agent，前端只消费信号
+      if (data.interview_over) { setTimeout(() => handleEnd(true), 500) }
+      else if (data.next_question) { setTimeout(() => advanceQuestion(), 500) }
+    } else if (data.error) {
+      ElMessage.error(data.error)
     }
   } catch (e) { console.error(e) }
   aiThinking.value = false; await scrollToBottom()

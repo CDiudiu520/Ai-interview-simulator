@@ -9,7 +9,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_core.chat_history import InMemoryChatMessageHistory
 
 # 把当前目录加入 Python 搜索路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -17,9 +16,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 load_dotenv(Path(__file__).parent / ".env")
 from db import fetch_all
 from rag import index  # RAG 检索索引（进程内存，重启清空）
+from agent import agent  # LangGraph 面试 Agent（状态机）
 
 app = FastAPI()
-store = {}  # key: session_id, value: InMemoryChatMessageHistory
+store = {}  # key: session_id, value: InterviewState（LangGraph Agent 状态）
 documents = {}  # key: document_id, value: 文档元信息（标题等）
 
 # 允许前端跨域访问
@@ -178,48 +178,47 @@ import uuid
 class ChatRequest(BaseModel):
     session_id: str | None = None  # 会话ID，首次为空
     message: str                    # 用户刚发送的一句话
+    questions: list[str] | None = None  # 首次调用传题目列表，初始化 Agent 状态
 
 @app.post("/chat")
 def chat(req: ChatRequest):
-    api_key = os.getenv("DEEPSEEK_API_KEY")
-
-    # 1. 找旧对话 or 创建新对话
+    # 1. 找旧状态 or 创建新面试状态
     sid = req.session_id
     if not sid or sid not in store:
+        # 首次：必须带题目列表初始化 Agent
+        if not req.questions:
+            return {"error": "首次调用需要提供 questions 题目列表"}
         sid = str(uuid.uuid4())
-        store[sid] = InMemoryChatMessageHistory()
+        store[sid] = {
+            "questions": req.questions,
+            "current_question": 0,
+            "history": [],
+            "follow_up_count": 0,
+            "max_follow_ups": 3,
+            "done": False,
+            "next_question": False,
+            "interview_over": False,
+        }
 
-    history = store[sid]
+    state = store[sid]
 
-    # 2. 把用户消息加入历史
-    history.add_user_message(req.message)
+    # 2. 把用户消息加入当前题的历史
+    state["history"] = state["history"] + [{"role": "user", "content": req.message}]
 
-    # 3. 拼完整消息：system + 全部历史
-    system_prompt = (
-        "你是一个专业的面试官。用户消息中会包含面试进度信息（第X/Y题、追问轮数、题目列表）。"
-        "规则如下：\n"
-        "1. 每道题追问2-3轮，深入考察候选人的理解深度\n"
-        "2. 追问够了之后，在回复末尾加上【下一题】，然后简短过渡到下一题\n"
-        "3. 如果是最后一题且追问够了，在回复末尾加上【面试结束】，并给一句结束语\n"
-        "4. 不要一次问多个问题，保持一对一对话节奏\n"
-        "5. 不要在回复中重复显示用户发来的进度信息"
-    )
-    messages = [SystemMessage(content=system_prompt)]
-    messages += history.messages
-
-    # 4. 调 LLM
-    llm = ChatOpenAI(
-        base_url="https://api.deepseek.com/v1",
-        api_key=api_key,
-        model="deepseek-v4-pro",
-        temperature=0.7
-    )
-
+    # 3. 交给 Agent 处理（生成回复 → 决策下一步），状态由 Agent 更新
     try:
-        response = llm.invoke(messages)
-        # 5. AI 回复也存进历史
-        history.add_ai_message(response.content)
-        return {"reply": response.content, "session_id": sid}
+        result = agent.invoke(state)
+        # 4. AI 回复也存进历史
+        ai_reply = result.get("reply", "")
+        result["history"] = result["history"] + [{"role": "ai", "content": ai_reply}]
+        store[sid] = result
+
+        return {
+            "reply": ai_reply,
+            "session_id": sid,
+            "next_question": bool(result.get("next_question")),
+            "interview_over": bool(result.get("interview_over")),
+        }
 
     except Exception as e:
         return {"error": str(e)}
