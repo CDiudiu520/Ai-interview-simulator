@@ -16,9 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 load_dotenv(Path(__file__).parent / ".env")
 from db import fetch_all
+from rag import index  # RAG 检索索引（进程内存，重启清空）
 
 app = FastAPI()
 store = {}  # key: session_id, value: InMemoryChatMessageHistory
+documents = {}  # key: document_id, value: 文档元信息（标题等）
 
 # 允许前端跨域访问
 app.add_middleware(
@@ -102,10 +104,18 @@ async def upload_document(file: UploadFile = File(...)):
         if not text.strip():
             return {"error": "文件内容为空，无法提取文本"}
 
+        # 加入 RAG 索引：分块 + 向量化，之后出题可引用
+        doc_id = str(uuid.uuid4())
+        documents[doc_id] = {"filename": filename, "length": len(text)}
+        chunk_count = index.add_document(text)
+        index.build_index()
+
         return {
             "filename": filename,
             "text": text,
             "length": len(text),
+            "document_id": doc_id,
+            "chunk_count": chunk_count,
         }
 
     except Exception as e:
@@ -115,6 +125,7 @@ async def upload_document(file: UploadFile = File(...)):
 class JDRequest(BaseModel):
     jd_text: str
     count: int = 5
+    document_id: str | None = None  # 可选：上传文档的ID，出题引用文档内容
 
 
 @app.post("/generate-questions")
@@ -130,9 +141,26 @@ def generate_questions(req: JDRequest):
     )
 
     # 2. 拼消息：system + 用户输入的JD
+    system_prompt = (
+        f"你是一个专业的面试官。请根据职位描述生成{req.count}道面试题，每题标注考察点。"
+        "不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"
+    )
+
+    # 2.5 如果上传了文档，检索相关片段拼进 Prompt（RAG）
+    human_content = req.jd_text
+    if req.document_id:
+        retrieved = index.search(req.jd_text, k=3)
+        if retrieved:
+            doc_snippet = "\n\n".join(retrieved)
+            system_prompt += (
+                "\n\n下面是候选人上传的面经/简历中与本次面试相关的片段，"
+                "出题时必须参考这些内容，优先考察文档里提到的知识点。"
+                f"\n【文档片段】\n{doc_snippet}"
+            )
+
     messages = [
-        SystemMessage(content=f"你是一个专业的面试官。请根据职位描述生成{req.count}道面试题，每题标注考察点。不要用Markdown格式，用纯文本：每道题用编号'第X题：'开头，题目和考察点之间用换行隔开。"),
-        HumanMessage(content=req.jd_text)
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=human_content)
     ]
 
     try:

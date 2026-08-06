@@ -72,7 +72,7 @@ const clampCustom = () => {
 }
 
 const uploading = ref(false)
-const form = reactive({ company: '', position: '', jd: '', type: 'tech', questionCount: 5, resumeFile: null })
+const form = reactive({ company: '', position: '', jd: '', type: 'tech', questionCount: 5, resumeFile: null, documentId: null })
 const handleResumeChange = async (file) => {
   form.resumeFile = file.raw
   uploading.value = true
@@ -84,7 +84,8 @@ const handleResumeChange = async (file) => {
     if (data.error) { ElMessage.error(data.error) }
     else {
       form.jd = form.jd + (form.jd ? '\n\n--- 简历内容 ---\n' : '') + data.text
-      ElMessage.success(`已解析 ${file.raw.name}，共 ${data.length} 字符`)
+      form.documentId = data.document_id || null
+      ElMessage.success(`已解析 ${file.raw.name}，共 ${data.length} 字符，已建立检索索引`)
     }
   } catch (e) { ElMessage.error('文件上传失败，请确认 AI 服务已启动') }
   finally { uploading.value = false }
@@ -102,15 +103,15 @@ const handleStart = async () => {
     const interview = await createRes.json()
     const aiRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/generate-questions`, {
       method: 'POST', headers,
-      body: JSON.stringify({ jd_text: form.jd || `${form.company} ${form.position} 岗位面试`, count: form.questionCount }),
+      body: JSON.stringify({ jd_text: form.jd || `${form.company} ${form.position} 岗位面试`, count: form.questionCount, document_id: form.documentId }),
     })
     const aiData = await aiRes.json()
     ElMessage.success('面试已创建，AI 正在生成题目...')
-    router.push({ path: `/interview/${interview.id}`, query: { company: form.company, position: form.position, jd: form.jd, type: form.type, count: form.questionCount, questions: aiData.questions } })
+    router.push({ path: `/interview/${interview.id}`, query: { company: form.company, position: form.position, jd: form.jd, type: form.type, count: form.questionCount, questions: aiData.questions, documentId: form.documentId } })
   } catch (e) { ElMessage.error('网络请求失败，请检查后端是否启动') }
   finally { starting.value = false }
 }
-const handleReset = () => { form.company = ''; form.position = ''; form.jd = ''; form.type = 'tech'; form.questionCount = 5; form.resumeFile = null }
+const handleReset = () => { form.company = ''; form.position = ''; form.jd = ''; form.type = 'tech'; form.questionCount = 5; form.resumeFile = null; form.documentId = null }
 </script>
 
 <style scoped>
