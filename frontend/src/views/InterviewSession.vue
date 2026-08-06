@@ -55,25 +55,24 @@
     <el-dialog v-model="showResult" title="面试结果" width="520px">
       <div class="result-panel" v-if="result">
         <div class="result-score"><span class="score-big">{{ result.score }}</span><span class="score-suffix">分</span></div>
-
-        <div class="result-block" v-if="result.highlights && result.highlights.length">
-          <div class="block-title">✅ 亮点</div>
-          <ul class="block-list"><li v-for="(h, i) in result.highlights" :key="i">{{ h }}</li></ul>
-        </div>
-
-        <div class="result-block" v-if="result.weaknesses && result.weaknesses.length">
-          <div class="block-title">⚠️ 短板</div>
-          <ul class="block-list"><li v-for="(w, i) in result.weaknesses" :key="i">{{ w }}</li></ul>
-        </div>
-
-        <div class="result-block" v-if="result.suggestions && result.suggestions.length">
-          <div class="block-title">💡 改进建议</div>
-          <ul class="block-list"><li v-for="(s, i) in result.suggestions" :key="i">{{ s }}</li></ul>
-        </div>
-
-        <div class="result-feedback" v-if="result.feedback">
+        <div class="result-feedback">
           <div class="feedback-title">总评</div>
           <p>{{ result.feedback }}</p>
+        </div>
+        <div v-if="result.highlights.length" class="result-section">
+          <div class="feedback-title">做得好的地方</div>
+          <ul class="result-list"><li v-for="(h, i) in result.highlights" :key="i">{{ h }}</li></ul>
+        </div>
+        <div v-if="result.weaknesses.length" class="result-section">
+          <div class="feedback-title">需要改进</div>
+          <ul class="result-list"><li v-for="(w, i) in result.weaknesses" :key="i">{{ w }}</li></ul>
+        </div>
+        <div v-if="result.suggestions.length" class="result-section">
+          <div class="feedback-title">改进建议</div>
+          <ul class="result-list"><li v-for="(s, i) in result.suggestions" :key="i">{{ s }}</li></ul>
+        </div>
+        <div class="result-actions">
+          <el-button type="primary" @click="goDetail">查看完整报告</el-button>
         </div>
       </div>
     </el-dialog>
@@ -109,8 +108,9 @@ function formatTime() { return new Date().toLocaleTimeString('zh-CN', { hour: '2
 onMounted(async () => {
   try {
     const jd = interview.jd || `${interview.company} ${interview.position}`
-    const res = await fetch('http://127.0.0.1:8080/ai/generate-questions', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/generate-questions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ jd_text: jd, count: interview.count || 5 })
     })
     const data = await res.json()
@@ -125,7 +125,21 @@ onMounted(async () => {
   loadingQuestions.value = false
 })
 
+const interviewId = route.params.id
 const sessionId = ref(null)
+const exchangeCount = ref(0)
+
+const advanceQuestion = () => {
+  currentIndex.value++
+  exchangeCount.value = 0
+  if (currentIndex.value < questions.value.length) {
+    const prefix = `【第${currentIndex.value + 1}题】`
+    messages.value.push({ role: 'ai', content: `${prefix} ${questions.value[currentIndex.value]}`, time: formatTime() })
+  } else {
+    handleEnd(true)
+  }
+}
+
 const handleSend = async () => {
   const text = userInput.value.trim()
   if (!text || aiThinking.value) return
@@ -133,31 +147,57 @@ const handleSend = async () => {
   userInput.value = ''; await scrollToBottom()
   aiThinking.value = true
   try {
-    const res = await fetch('http://127.0.0.1:8080/ai/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId.value, message: text })
+    const token = localStorage.getItem('token')
+    const questionContext = questions.value.length > 0
+      ? `（当前是第${currentIndex.value + 1}/${questions.value.length}题，追问第${exchangeCount.value + 1}轮，最多追问3轮。如果该换题了，回复中必须包含【下一题】；如果是最后一题且追问够了，回复中必须包含【面试结束】。题目列表：${questions.value.join(' | ')}）`
+      : ''
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_id: sessionId.value, message: questionContext + text })
     })
     const data = await res.json()
-    if (data.reply) { messages.value.push({ role: 'ai', content: data.reply, time: formatTime() }); sessionId.value = data.session_id }
+    if (data.reply) {
+      const reply = data.reply
+      messages.value.push({ role: 'ai', content: reply, time: formatTime() })
+      sessionId.value = data.session_id
+      exchangeCount.value++
+      if (reply.includes('【面试结束】')) { setTimeout(() => handleEnd(true), 500) }
+      else if (reply.includes('【下一题】') || exchangeCount.value >= 4) { setTimeout(() => advanceQuestion(), 500) }
+    }
   } catch (e) { console.error(e) }
   aiThinking.value = false; await scrollToBottom()
 }
 
-const handleEnd = () => {
-  ElMessageBox.confirm('确定要结束当前面试吗？', '提示', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
-    .then(async () => {
-      ElMessage.info('正在 AI 评估中...')
-      try {
-        const history = messages.value.map(m => ({ role: m.role, content: m.content }))
-        const res = await fetch('http://127.0.0.1:8080/ai/evaluate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history }) })
-        const data = await res.json()
-        if (data.score !== undefined) { result.value = { score: data.score, feedback: data.feedback, highlights: data.highlights || [], weaknesses: data.weaknesses || [], suggestions: data.suggestions || [] } }
-      } catch (e) { console.error(e) }
-      showResult.value = true
-    }).catch(() => {})
+const handleEnd = (skipConfirm = false) => {
+  const doEnd = async () => {
+    showResult.value = true
+    try {
+      const history = messages.value.map(m => ({ role: m.role, content: m.content }))
+      const token = localStorage.getItem('token')
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/evaluate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ messages: history, interview_id: Number(interviewId) }),
+      })
+      const data = await res.json()
+      if (data.score !== undefined) {
+        result.value = { score: data.score, feedback: data.feedback, highlights: data.highlights || [], weaknesses: data.weaknesses || [], suggestions: data.suggestions || [] }
+        ElMessage.success('评分完成，已保存到面试记录')
+      }
+    } catch (e) { console.error(e); ElMessage.error('评分失败') }
+  }
+  if (skipConfirm) { doEnd() }
+  else {
+    ElMessageBox.confirm('确定要结束当前面试吗？', '提示', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+      .then(doEnd).catch(() => {})
+  }
 }
 
 const scrollToBottom = async () => { await nextTick(); const el = messagesRef.value; if (el) el.scrollTop = el.scrollHeight }
+
+const goDetail = () => {
+  showResult.value = false
+  router.push({ path: `/interview/detail/${interviewId}` })
+}
 </script>
 
 <style scoped>
@@ -202,15 +242,10 @@ const scrollToBottom = async () => { await nextTick(); const el = messagesRef.va
 .result-score { margin: 16px 0; }
 .score-big { font-size: 48px; font-weight: 700; color: var(--primary); }
 .score-suffix { font-size: 18px; color: var(--text-secondary); margin-left: 4px; }
-.result-dims { margin: 20px 0; text-align: left; }
-.dim-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
-.dim-row:last-child { border-bottom: none; }
-.dim-label { font-size: 14px; color: var(--text); }
-.result-block { text-align: left; margin-bottom: 16px; }
-.block-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
-.block-list { margin: 0; padding: 0 0 0 16px; }
-.block-list li { font-size: 14px; line-height: 1.8; color: var(--text-secondary); margin-bottom: 4px; }
-
 .result-feedback { text-align: left; margin-top: 16px; padding: 16px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); line-height: 1.8; font-size: 14px; }
 .feedback-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.result-section { text-align: left; margin-top: 12px; }
+.result-list { margin: 0; padding-left: 18px; }
+.result-list li { font-size: 14px; line-height: 1.8; color: var(--text); }
+.result-actions { margin-top: 20px; text-align: center; }
 </style>

@@ -20,8 +20,11 @@
       </div>
     </div>
 
+    <!-- 加载/错误 -->
+    <div v-if="loading" class="empty-state"><p>加载中...</p></div>
+    <div v-else-if="error" class="empty-state"><p>{{ error }}</p><el-button type="primary" @click="fetchInterviews">重新加载</el-button></div>
     <!-- 空状态 -->
-    <div v-if="filteredList.length === 0" class="empty-state">
+    <div v-else-if="filteredList.length === 0" class="empty-state">
       <p v-if="search || filterType">没有找到匹配的面试记录</p>
       <p v-else>还没有面试记录，去创建你的第一场模拟面试吧</p>
       <el-button v-if="!search && !filterType" type="primary" @click="$router.push('/interview/create')">
@@ -51,7 +54,7 @@
           :key="item.id"
           class="timeline-node"
           :style="{ left: idx * cardGap + 'px' }"
-          @click="goDetail(item.id)"
+          @click="goDetail(item)"
         >
           <!-- 竖线 -->
           <div class="node-stem"></div>
@@ -66,6 +69,7 @@
               <span class="card-score" :class="scoreClass(item.score)">{{ item.score }}分</span>
             </div>
             <div class="card-date">{{ item.date }}</div>
+            <button class="card-retry" @click.stop="handleRetry(item)">重新模拟</button>
           </div>
         </div>
 
@@ -76,30 +80,57 @@
       <!-- 拖拽提示 -->
       <div class="drag-hint">← 拖动浏览 →</div>
     </div>
+
+    <!-- 分页 -->
+    <div class="pagination-row" v-if="total > pageSize">
+      <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="total"
+        layout="prev, pager, next" @current-change="handlePageChange" />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { IconAddSignBold } from '@iconify-prerendered/vue-streamline-freehand'
 
 const router = useRouter()
 
 const search = ref('')
 const filterType = ref('')
+const loading = ref(true)
+const error = ref('')
 const typeMap = { tech: '技术面', hr: 'HR面', mixed: '综合面' }
 
-const allInterviews = ref([
-  { id: 1, company: '字节跳动', position: '后端开发实习生', type: 'tech', date: '07-12', score: 78, duration: '25分钟' },
-  { id: 2, company: '阿里巴巴', position: 'Java 开发实习', type: 'tech', date: '07-10', score: 65, duration: '30分钟' },
-  { id: 3, company: '美团', position: 'AI 应用开发', type: 'mixed', date: '07-08', score: 82, duration: '20分钟' },
-  { id: 4, company: '腾讯', position: '前端开发实习', type: 'tech', date: '07-05', score: 71, duration: '28分钟' },
-  { id: 5, company: '华为', position: '云计算实习生', type: 'tech', date: '07-03', score: 55, duration: '22分钟' },
-  { id: 6, company: '小红书', position: '产品经理实习', type: 'hr', date: '07-01', score: 88, duration: '18分钟' },
-  { id: 7, company: '百度', position: 'AI 产品实习', type: 'mixed', date: '06-28', score: 73, duration: '26分钟' },
-  { id: 8, company: '网易', position: '游戏策划实习', type: 'hr', date: '06-25', score: 60, duration: '15分钟' },
-])
+const allInterviews = ref([])
+const currentPage = ref(1)
+const pageSize = ref(8)
+const total = ref(0)
+
+const fetchInterviews = async () => {
+  loading.value = true
+  error.value = ''
+  try {
+    const token = localStorage.getItem('token')
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/interviews?page=${currentPage.value}&size=${pageSize.value}`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    )
+    if (res.ok) {
+      const result = await res.json()
+      total.value = result.count || 0
+      allInterviews.value = (result.data || []).map(i => ({
+        id: i.id, company: i.company, position: i.position,
+        type: i.type || 'tech', date: i.createdAt ? i.createdAt.substring(0, 10) : '',
+        score: i.score || 0, duration: '',
+      }))
+    } else { error.value = '加载失败' }
+  } catch (e) { error.value = '网络请求失败，请检查后端是否启动' }
+  finally { loading.value = false }
+}
+
+const handlePageChange = (page) => { currentPage.value = page; fetchInterviews() }
 
 const filteredList = computed(() => {
   let list = allInterviews.value
@@ -119,9 +150,24 @@ const scoreClass = (score) => {
   return 's-low'
 }
 
-const goDetail = (id) => {
+const goDetail = (item) => {
   if (Math.abs(dragDelta) > 4) return
-  router.push(`/interview/${id}`)
+  router.push({ path: `/interview/detail/${item.id}` })
+}
+
+const handleRetry = async (item) => {
+  try {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/interviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ company: item.company, position: item.position, type: item.type || 'tech' }),
+    })
+    if (!res.ok) { const err = await res.json(); ElMessage.error(err.error || '创建失败'); return }
+    const created = await res.json()
+    ElMessage.success('已创建，开始重新模拟')
+    router.push({ path: `/interview/${created.id}`, query: { company: created.company, position: created.position, type: created.type || 'tech' } })
+  } catch (e) { ElMessage.error('网络请求失败，请检查后端是否启动') }
 }
 
 /* ── 拖拽 / 滚轮 ── */
@@ -173,6 +219,7 @@ const onResize = () => {
 }
 
 onMounted(() => {
+  fetchInterviews()
   clampOffset()
   window.addEventListener('resize', onResize)
 })
@@ -321,6 +368,8 @@ onBeforeUnmount(() => {
 .card-score.s-mid { color: var(--warning); }
 .card-score.s-low { color: var(--danger); }
 .card-date { font-size: 12px; color: var(--text-muted); }
+.card-retry { margin-top: 10px; padding: 4px 14px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--primary); font-size: 12px; cursor: pointer; transition: all var(--fast); }
+.card-retry:hover { border-color: var(--primary); background: var(--primary-ghost); }
 
 /* 拖拽提示 */
 .drag-hint {
@@ -332,4 +381,5 @@ onBeforeUnmount(() => {
   color: var(--text-muted);
   pointer-events: none;
 }
+.pagination-row { display: flex; justify-content: center; padding: 20px 0 0; }
 </style>

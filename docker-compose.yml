@@ -2,7 +2,7 @@ services:
 
   # 1. MySQL 数据库
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.35
     environment:
       MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: ai_interview
@@ -11,12 +11,24 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # 2. Redis 缓存
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.1-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # 3. Python AI 服务
   ai-service:
@@ -30,7 +42,14 @@ services:
       DB_PASSWORD: 123456
       DB_NAME: ai_interview
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # 4. Java 后端
   backend:
@@ -40,9 +59,18 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      - mysql
-      - redis
-      - ai-service
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
 
   # 5. 前端
   frontend:
@@ -51,6 +79,12 @@ services:
       - "5173:80"
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   mysql-data:

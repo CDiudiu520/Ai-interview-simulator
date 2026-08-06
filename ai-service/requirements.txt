@@ -3,3 +3,6 @@ uvicorn
 pymysql
 langchain-openai
 python-dotenv
+pypdf
+python-docx
+python-multipart

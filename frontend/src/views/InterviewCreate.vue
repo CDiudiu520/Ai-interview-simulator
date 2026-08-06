@@ -19,7 +19,7 @@
         <el-upload drag :auto-upload="false" :on-change="handleResumeChange" :limit="1" accept=".pdf,.txt,.md,.doc,.docx" class="resume-upload">
           <IconDrawerDownload style="width:36px;height:36px;color:var(--text-muted);margin-bottom:8px;" />
           <div class="upload-text">拖拽或 <em>点击上传</em> 简历文件</div>
-          <template #tip><div class="upload-tip">PDF / Word / TXT / Markdown</div></template>
+          <template #tip><div class="upload-tip">{{ uploading ? '正在解析文件...' : 'PDF / Word / TXT / Markdown，解析后自动填入 JD' }}</div></template>
         </el-upload>
       </el-form-item>
       <el-form-item label="面试类型">
@@ -71,16 +71,44 @@ const clampCustom = () => {
   if (form.questionCount > 30) form.questionCount = 30
 }
 
+const uploading = ref(false)
 const form = reactive({ company: '', position: '', jd: '', type: 'tech', questionCount: 5, resumeFile: null })
-const handleResumeChange = (file) => { form.resumeFile = file.raw }
-const handleStart = () => {
+const handleResumeChange = async (file) => {
+  form.resumeFile = file.raw
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file.raw)
+    const res = await fetch('http://127.0.0.1:8000/upload-document', { method: 'POST', body: formData })
+    const data = await res.json()
+    if (data.error) { ElMessage.error(data.error) }
+    else {
+      form.jd = form.jd + (form.jd ? '\n\n--- 简历内容 ---\n' : '') + data.text
+      ElMessage.success(`已解析 ${file.raw.name}，共 ${data.length} 字符`)
+    }
+  } catch (e) { ElMessage.error('文件上传失败，请确认 AI 服务已启动') }
+  finally { uploading.value = false }
+}
+const handleStart = async () => {
   if (!form.company || !form.position) { ElMessage.warning('请至少填写目标公司和岗位'); return }
   starting.value = true
-  setTimeout(() => {
-    starting.value = false
+  try {
+    const token = localStorage.getItem('token')
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+    const createRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/interviews`, {
+      method: 'POST', headers, body: JSON.stringify({ company: form.company, position: form.position, type: form.type }),
+    })
+    if (!createRes.ok) { const err = await createRes.json(); ElMessage.error(err.error || '创建面试失败'); return }
+    const interview = await createRes.json()
+    const aiRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/ai/generate-questions`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ jd_text: form.jd || `${form.company} ${form.position} 岗位面试`, count: form.questionCount }),
+    })
+    const aiData = await aiRes.json()
     ElMessage.success('面试已创建，AI 正在生成题目...')
-    router.push({ path: '/interview/1', query: { company: form.company, position: form.position, jd: form.jd, type: form.type, count: form.questionCount } })
-  }, 1000)
+    router.push({ path: `/interview/${interview.id}`, query: { company: form.company, position: form.position, jd: form.jd, type: form.type, count: form.questionCount, questions: aiData.questions } })
+  } catch (e) { ElMessage.error('网络请求失败，请检查后端是否启动') }
+  finally { starting.value = false }
 }
 const handleReset = () => { form.company = ''; form.position = ''; form.jd = ''; form.type = 'tech'; form.questionCount = 5; form.resumeFile = null }
 </script>

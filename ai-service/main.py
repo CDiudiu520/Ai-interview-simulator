@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import sys
 import json
+import io
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -58,6 +59,57 @@ def get_interviews():
     """
     rows = fetch_all(sql)
     return {"count": len(rows), "data": rows}
+
+
+@app.post("/upload-document")
+async def upload_document(file: UploadFile = File(...)):
+    """接收 PDF/Word 文件，解析并返回文本内容"""
+    # 检查文件类型
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in ("pdf", "docx", "doc", "txt", "md"):
+        return {"error": f"不支持的文件格式: .{ext}，支持 PDF/Word/TXT/Markdown"}
+
+    try:
+        content = await file.read()
+
+        if ext == "pdf":
+            # PDF 解析
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            text_parts = []
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_parts.append(page_text)
+            text = "\n\n".join(text_parts)
+
+        elif ext in ("docx", "doc"):
+            # Word 解析
+            from docx import Document
+            doc = Document(io.BytesIO(content))
+            text_parts = []
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    text_parts.append(para.text)
+            text = "\n".join(text_parts)
+
+        else:
+            # TXT/MD 直接读
+            text = content.decode("utf-8")
+
+        if not text.strip():
+            return {"error": "文件内容为空，无法提取文本"}
+
+        return {
+            "filename": filename,
+            "text": text,
+            "length": len(text),
+        }
+
+    except Exception as e:
+        return {"error": f"文件解析失败: {str(e)}"}
 
 
 class JDRequest(BaseModel):
@@ -115,7 +167,16 @@ def chat(req: ChatRequest):
     history.add_user_message(req.message)
 
     # 3. 拼完整消息：system + 全部历史
-    messages = [SystemMessage(content="你是一个专业的面试官。请根据候选人的回答进行追问或点评。如果候选人回答得好，深入追问细节；如果回答不好，引导候选人思考。保持对话节奏，不要一次问太多问题。")]
+    system_prompt = (
+        "你是一个专业的面试官。用户消息中会包含面试进度信息（第X/Y题、追问轮数、题目列表）。"
+        "规则如下：\n"
+        "1. 每道题追问2-3轮，深入考察候选人的理解深度\n"
+        "2. 追问够了之后，在回复末尾加上【下一题】，然后简短过渡到下一题\n"
+        "3. 如果是最后一题且追问够了，在回复末尾加上【面试结束】，并给一句结束语\n"
+        "4. 不要一次问多个问题，保持一对一对话节奏\n"
+        "5. 不要在回复中重复显示用户发来的进度信息"
+    )
+    messages = [SystemMessage(content=system_prompt)]
     messages += history.messages
 
     # 4. 调 LLM

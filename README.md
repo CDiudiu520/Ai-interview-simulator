@@ -50,15 +50,35 @@ docker compose up
 # http://localhost:5173
 ```
 
+## API 接口
+
+| 方法 | 路径 | 说明 | 认证 |
+|------|------|------|:--:|
+| POST | `/auth/register` | 用户注册 | — |
+| POST | `/auth/login` | 用户登录 | — |
+| POST | `/auth/logout` | 用户登出 | Bearer |
+| GET | `/interviews` | 面试列表（分页） | Bearer |
+| POST | `/interviews` | 创建面试 | Bearer |
+| GET | `/interviews/stats` | 面试统计 | Bearer |
+| POST | `/ai/generate-questions` | AI 生成题目 | Bearer |
+| POST | `/ai/chat` | AI 追问对话 | Bearer |
+| POST | `/ai/evaluate` | AI 评分 | Bearer |
+
+> 启动后访问 `http://localhost:8080/swagger-ui.html` 查看 Swagger 接口文档。
+
 ## 系统架构
 
 详见 [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ```
 浏览器(Vue3) → Java(Spring Boot) → Python(FastAPI) → DeepSeek
-                  ↓      ↘              ↓
-               Redis    MySQL ←─────────┘
-              (Token)  (用户+面试记录)
+    │              ↓      ↘              ↓
+    │           JWT Filter  MySQL ←──────┘
+    │              ↓      (用户+面试记录)
+    │          TokenStore
+    │           (Redis/内存)
+    │
+    └── 路由守卫(beforeEach) 拦截未登录访问
 ```
 
 ## 本地开发（不用 Docker）

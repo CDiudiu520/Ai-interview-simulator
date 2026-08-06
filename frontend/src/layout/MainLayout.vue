@@ -28,11 +28,11 @@
               <div class="avatar-circle">
                 <IconAppWindowUser class="avatar-icon" />
               </div>
-              <span class="user-name">管理员</span>
+              <span class="user-name">{{ username || '用户' }}</span>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="$router.push('/login')">退出登录</el-dropdown-item>
+                <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -51,6 +51,9 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import {
   IconConversationChat,
   IconHome,
@@ -58,6 +61,27 @@ import {
   IconAlertAlarmClock,
   IconAppWindowUser,
 } from '@iconify-prerendered/vue-streamline-freehand'
+
+const router = useRouter()
+const username = ref('')
+
+onMounted(() => {
+  username.value = localStorage.getItem('username') || '用户'
+})
+
+const handleLogout = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    })
+  } catch (e) {}
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  ElMessage.success('已退出登录')
+  router.push('/login')
+}
 </script>
 
 <style scoped>

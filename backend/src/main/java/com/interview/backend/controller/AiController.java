@@ -1,5 +1,7 @@
 package com.interview.backend.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -17,10 +19,12 @@ import java.util.Map;
 @RequestMapping("/ai")
 public class AiController {
 
-    @Value("${ai.service-url}")               // 从 application.yml 读取地址
+    private static final Logger log = LoggerFactory.getLogger(AiController.class);
+
+    @Value("${ai.service-url}")
     private String aiServiceUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();  // Java版的requests
+    private final RestTemplate restTemplate = new RestTemplate();
     private final InterviewMapper interviewMapper;
 
     public AiController(InterviewMapper interviewMapper) {
@@ -55,6 +59,9 @@ public class AiController {
                     interview.setScore(BigDecimal.valueOf(((Number) scoreObj).doubleValue()));
                 }
                 interview.setFeedback((String) result.get("feedback"));
+                interview.setHighlights(toStringArrayJson(result.get("highlights")));
+                interview.setWeaknesses(toStringArrayJson(result.get("weaknesses")));
+                interview.setSuggestions(toStringArrayJson(result.get("suggestions")));
                 interviewMapper.updateById(interview);
             }
         }
@@ -64,6 +71,7 @@ public class AiController {
 
     // 统一转发：收到前端请求 → 转发给 Python → 原样返回
     private Map forward(String path, Map<String, Object> body) {
+        long start = System.currentTimeMillis();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
@@ -72,6 +80,21 @@ public class AiController {
             request,
             Map.class
         );
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("AI 调用 {} 耗时 {}ms", path, elapsed);
         return response.getBody();
+    }
+
+    // Python 返回的评分维度是 List<String>，转成 JSON 数组字符串存 DB（TEXT 列）
+    private String toStringArrayJson(Object obj) {
+        if (!(obj instanceof java.util.List)) return null;
+        try {
+            java.util.List<?> list = (java.util.List<?>) obj;
+            if (list.isEmpty()) return "[]";
+            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(list);
+        } catch (Exception e) {
+            log.warn("评分维度转 JSON 失败: {}", e.getMessage());
+            return "[]";
+        }
     }
 }

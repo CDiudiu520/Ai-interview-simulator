@@ -7,6 +7,11 @@ const routes = [
     component: () => import('../views/Login.vue'),
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/Register.vue'),
+  },
+  {
     path: '/',
     component: () => import('../layout/MainLayout.vue'),
     redirect: '/home',
@@ -30,6 +35,12 @@ const routes = [
         meta: { title: '面试记录' },
       },
       {
+        path: 'interview/detail/:id',
+        name: 'InterviewDetail',
+        component: () => import('../views/InterviewDetail.vue'),
+        meta: { title: '面试详情' },
+      },
+      {
         path: 'interview/:id',
         name: 'InterviewSession',
         component: () => import('../views/InterviewSession.vue'),
@@ -42,6 +53,20 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+// 路由守卫
+const WHITE_LIST = ['/login', '/register']
+
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem('token')
+  if (WHITE_LIST.includes(to.path)) {
+    if (token) next('/home')
+    else next()
+  } else {
+    if (!token) next('/login')
+    else next()
+  }
 })
 
 export default router
